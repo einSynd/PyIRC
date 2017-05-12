@@ -1,0 +1,6 @@
+{
+    "hercules": "%user%, honey, you mean HUNKULES",
+    "hunkules": "Yeah you right, %user%",
+    "mycolor":  "Color is for butts.",
+    "carlito":  "Who's the boy, wanna be amigo"
+}

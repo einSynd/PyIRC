@@ -1,1 +1,1 @@
-"Simple Python IRC Bot" 
+Simple Python IRC Bot

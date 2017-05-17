@@ -1,0 +1,7 @@
+Armor:      17.578%
+Blue:       01.953%
+Iris:       01.953%
+Other:      14.063%
+Healing:    22.656%
+Spells:     11.719%
+Weapons:    32.031%

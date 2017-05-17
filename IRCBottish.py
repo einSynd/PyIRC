@@ -3,7 +3,8 @@ import socket
 import os
 import sys
 import re
-from random import randint
+import random
+from threading import Timer
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 os.chdir(dir_path)
@@ -20,6 +21,10 @@ client = "Electro-Choc"
 startChannel = "#einTest"
 commandChar = "+"
 responderStatus = "on"
+#Number of seconds to trigger flood protection
+floodProtection = float(10)
+#1 after command runs, 0 after floodProtection seconds
+antiFlood = 0
 
 def unknownMsg(data):
     print(data)
@@ -78,8 +83,13 @@ def userMode(data):
     target = dataParts[4]
     print(user + "@" + channel  + " has given " + mode + " to " + target)
 
+def resetAntiFlood():
+    global antiFlood
+    #print("Resetting anti flood")
+    antiFlood = 0
+
 def cmdRequest(user, channel, text):
-    global admin, allowedUsers
+    global admin, allowedUsers, floodProtection, antiFlood
     
     dataParts = text.split(" ")
     if len(dataParts) > 1:
@@ -92,7 +102,7 @@ def cmdRequest(user, channel, text):
     cmd = cmd.lower()
     
     #List of admin commands to prevent running an if on cmd 100 times
-    adminCmd = ["debug", "join", "part", "quit", "adduser", "deluser"]
+    adminCmd = ["debug", "join", "part", "quit", "adduser", "deluser", "antiflood"]
     
     #List of admins in lowercase
     adminLower = [name.lower() for name in admin]
@@ -102,7 +112,21 @@ def cmdRequest(user, channel, text):
         if user.lower() in adminLower:
             if cmd == "debug":
                 sendPrivMsg(user, "%s" % (allowedUsers))
+                sendPrivMsg(user, "%s" % (adminCmd))
                 return
+            
+            if cmd == "antiflood":
+                if args != "":
+                    try:
+                        floodProtection = float(30)
+                        if int(args) == 0:
+                            sendPrivMsg(channel, "Anti-Flood timer disabled.")
+                        else:
+                            sendPrivMsg(channel, "Anti-Flood timer set to %s seconds." % args)
+                    except ValueError:
+                        sendPrivMsg(channel, "%s is not a valid number of seconds." % args)
+                else:
+                    sendPrivMsg(channel, "Flood protection is currently %s seconds." % floodProtection)
             
             if cmd == "join" and args != "":
                 sendMsg("JOIN %s" % (args))
@@ -139,8 +163,9 @@ def cmdRequest(user, channel, text):
                     sendPrivMsg(channel, "%s is not an allowed user anyway." % (newUser))
         #Admin command but user not admin
         else:
-            rando = randint(0,len(denial)-1)
+            rando = random.randint(0,len(denial)-1)
             sendMsg("PRIVMSG %s :" % (channel) + denial[rando] % (user))
+        return
 
     #List of mod commands to avoid running an if on cmd 100 times
     modCmd = ["abilityreload", "reply"]
@@ -186,15 +211,30 @@ def cmdRequest(user, channel, text):
         #Priveleged command but not priveleged
         else:
             print("Mod Denial")
-            rando = randint(0,len(denial)-1)
+            rando = random.randint(0,len(denial)-1)
             sendMsg("PRIVMSG %s :" % (channel) + denial[rando] % (user))
+        return
 
     #Public Commands
+    if antiFlood == 1:
+        return
+    
     if cmd == "butt" and args != "":
         isAre = "is"
         if args.find("and") > -1:
             isAre = "are"
         sendPrivMsg(channel,"%s %s indeed a butt." % (args, isAre))
+    
+    if cmd == "chest":
+        try:
+            from Chest import getItem
+        except ModuleNotFoundError:
+            sendPrivMsg(channel, "Chest Module not found")
+            return
+        
+        floorNum, floorInfo, item = getItem.pickAnItem()
+        formatted = "%s found '%s' on floor %s" % (user, item, floorNum)
+        sendPrivMsg(channel, formatted)
     
     if cmd == "ability" and args != "":
         try:
@@ -218,6 +258,12 @@ def cmdRequest(user, channel, text):
             sendPrivMsg(channel, formatted)
         else:
             sendPrivMsg(channel, "Not found")
+    
+    if floodProtection > 0 and antiFlood == 0:
+            print("Setting flood protection")
+            antiFlood = 1
+            t = Timer(floodProtection, resetAntiFlood)
+            t.start()
 
 messageType = {
     "NOTICE": notice, 

@@ -1,9 +1,14 @@
+import os
 import csv
 abilityList = {}
 
 def loadAbilities():
     global abilityList
-    with open('FF4/FF4Abil.csv', 'r') as csvFile:
+    fileName = "FF4P/FF4P_Abil.csv"
+    if not os.path.exists(fileName):
+        fileName = "FF4P_Abil.csv"
+    
+    with open(fileName, 'r') as csvFile:
         abilityReader = csv.reader(csvFile, delimiter=',', quotechar='|')
         i = 0
         for row in abilityReader:

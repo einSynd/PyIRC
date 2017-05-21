@@ -215,7 +215,7 @@ def cmdRequest(user, channel, text):
             #Reloads the list of abilities from the FF4P plugin
             #   CSV can be edited and reloaded so bot doesn't have to restart for minor changes
             if cmd.lower() == "abilityreload":
-                if modules["FF4P"] == enabled:
+                if modules["FF4P"] == "enabled":
                     try:
                         from FF4P import Abilities
                     except ModuleNotFoundError:
@@ -306,7 +306,7 @@ def cmdRequest(user, channel, text):
     
     #Gets an item at random from the chest module
     if cmd == "chest":
-        if modules["Chest"] == enabled:
+        if modules["Chest"] == "enabled":
             try:
                 from Chest import getItem
             except ModuleNotFoundError:

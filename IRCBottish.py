@@ -34,9 +34,6 @@ modules = {"FF4P": "enabled", "Responder": "enabled", "Chest": "enabled"}
 #Message for non-privileged users trying to run privileged commands, picked at random
 denial = ["Wash your face and try again, %s.", "You're not allowed to touch me, %s!"]
 
-def unknownMsg(data):
-    print(data)
-
 #All messages come here, be it PMs or channel messages
 def privMsg(data):
     user = data[1:].split("!")[0]
@@ -97,7 +94,7 @@ def userQuit(data):
 def userMode(data):
     dataParts = data[1:].split(" ")
     #Check if it's a user by looking for the ! sent with username
-    if dataParts[0].find("!") > -1:
+    if "!" in dataParts[0]:
         user = dataParts[0].split("!")[0]
     else:
         user = dataParts[0]
@@ -302,7 +299,7 @@ def cmdRequest(user, channel, text):
     #Silly command to call someone or something a butt
     if cmd == "butt" and args != "":
         isAre = "is"
-        if args.find("and") > -1:
+        if "and" in args:
             isAre = "are"
         sendPrivMsg(channel,"%s %s indeed a butt." % (args, isAre))
         cmdRan = 1
@@ -390,7 +387,9 @@ def processLog(data):
     if dataParts[-2] == "PING":
         sendMsg("PONG " + dataParts[-1])
     elif len(dataParts) > 1:
-        funcToRun = messageType.get(dataParts[1], unknownMsg)
+        #Use the second word to find out what type of message it is and do its specific
+        #   function, or basic print function if it's something else.
+        funcToRun = messageType.get(dataParts[1], print)
         funcToRun(data)
     else:
         print(data)
@@ -419,5 +418,5 @@ if __name__ == "__main__":
         data = data.decode()
         processLog(data)
 
-        if data.find("376 " + nick) > -1:
+        if ("376 " + nick) in data:
             sendMsg("JOIN %s" % (startChannel))

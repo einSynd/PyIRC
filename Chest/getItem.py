@@ -6,7 +6,7 @@ import random
 import csv
 
 #List all of the CSV files by category, minus .csv
-fileList = {"Armor": "Armor", "Blue": "Blue Treasure", "Other": "Other Usables",
+fileDict = {"Armor": "Armor", "Blue": "Blue Treasure", "Other": "Other Usables",
             "Healing": "Restorative Usables", "Spells": "Spells", "Weapon": "Weapons",
             "Iris": "Iris Treasure"}
 
@@ -20,9 +20,9 @@ categories = ["Armor", "Blue", "Iris", "Other", "Healing", "Spells", "Weapon"]
 catWeights = [17.57, 1.95, 1.95, 14.06, 22.66, 11.72, 32.03]
 
 def getFileName(type):
-    fileName = "Chest/" + fileList[type] + ".csv"
+    fileName = "Chest/" + fileDict[type] + ".csv"
     if not os.path.exists(fileName):
-        fileName = fileList[type] + ".csv"
+        fileName = fileDict[type] + ".csv"
     if not os.path.exists(fileName):
         print(type + "CSV not found")
         return -1

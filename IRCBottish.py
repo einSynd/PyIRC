@@ -150,11 +150,13 @@ def cmdRequest(user, channel, text):
             if cmd == "antiflood":
                 if args != "":
                     try:
-                        floodProtection = float(30)
+                        floodProtection = float(args)
                         if int(args) == 0:
                             sendPrivMsg(channel, "Anti-Flood timer disabled.")
+                            antiFlood = 0
                         else:
                             sendPrivMsg(channel, "Anti-Flood timer set to %s seconds." % args)
+                            antiFlood = 0
                     except ValueError:
                         sendPrivMsg(channel, "%s is not a valid number of seconds." % args)
                 else:

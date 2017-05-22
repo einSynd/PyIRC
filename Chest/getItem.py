@@ -91,14 +91,19 @@ def getArmorList(floorNum):
     
     #Checked for arrays already loaded
     if floorNum < 10 and "1-9" in itemDicts[type]:
+        #print("Armor on floors 1-9 is cached.")
         name = itemDicts[type]["1-9"]["name"]
         chance = itemDicts[type]["1-9"]["chance"]
         floors = itemDicts[type]["1-9"]["floors"]
+        
     elif floorNum > 9 and "10+" in itemDicts[type]:
+        #print("Armor on floors 10-98 is cached.")
         name = itemDicts[type]["10+"]["name"]
         chance = itemDicts[type]["10+"]["chance"]
         floors = itemDicts[type]["10+"]["floors"]
+        
     else:
+        #Armor for the proper floor isn't cached, load it.
         fileName = getFileName(type)
         if type == -1:
             return ["File not found"], [1]
@@ -151,7 +156,7 @@ def getBasicList(type):
     
     #Check if the dict for that item type has stats already loaded
     if "chance" in itemDicts[type]:
-        print("Item type %s is cached." % (type))
+        #print("Item type %s is cached." % (type))
         name = itemDicts[type]["name"]
         chance = itemDicts[type]["chance"]
     else:

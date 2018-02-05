@@ -9,6 +9,11 @@ from threading import Timer
 dir_path = os.path.dirname(os.path.realpath(__file__))
 os.chdir(dir_path)
 
+#Import the mandatory module ModLoader
+from ModLoader import modLoader
+
+#Run modLoader to get the modules as a dict from Modules.json
+modules, modList = modLoader.loadModules()
 
 server = "irc.rizon.net"
 port = 6667
@@ -27,9 +32,6 @@ antiFlood = 0
 admin = ["einSynd", "einSyndication", "Jitterskull"]
 allowedUsers = ["chirico", "Chocolate", "BROVIETTO", "DynamicDonut", "Albs"]
 allowedUsers += admin
-
-#enable/disable toggle for modules
-modules = {"FF4P": "enabled", "Responder": "enabled", "Chest": "enabled"}
 
 #Message for non-privileged users trying to run privileged commands, picked at random
 denial = ["Wash your face and try again, %s.", "You're not allowed to touch me, %s!"]
@@ -51,20 +53,16 @@ def privMsg(data):
     if text[:1] == commandChar:
         cmdRequest(user, channel, text[1:])
     
-    #Check if responder module is enabled
-    if modules["Responder"] == "enabled":
-        #Check if responder module is loaded
-        try:
-            from Responder import Reply
-        except:
-            print("Responder module not found.")
-            return
-        
-        #Check for a responder message in the text and reply if found
-        toRespond = Reply.findReply(text)
-        if toRespond:
-            toRespond = toRespond.replace("%user%", user)
-            sendPrivMsg(channel, toRespond)
+    #Check if responder.reply exists
+    if "Reply" in modules:
+        #Check if responder module is enabled
+        if modList["Responder"]["enabled"]:
+            
+            #Check for a responder message in the text and reply if found
+            toRespond = getattr(modules["Reply"], "findReply")(text)
+            if toRespond:
+                toRespond = toRespond.replace("%user%", user)
+                sendPrivMsg(channel, toRespond)
 
 #Notice was sent, print nicer
 def notice(data):
@@ -116,9 +114,77 @@ def resetAntiFlood():
     #print("Resetting anti flood")
     antiFlood = 0
 
+def handleModuleCommands(cmd, args, user, channel):
+    global admin, allowedusers, modules, modList, antiFlood
+    adminLower = [name.lower() for name in admin]
+    privLower = [name.lower() for name in allowedUsers]
+    
+    if user.lower() in adminLower:
+        userLevel = 2
+    elif user.lower() in privLower:
+        userLevel = 1
+    else:
+        userLevel = 0
+    
+    #Loop through mods in modList
+    for mod, modVals in modList.items():
+        #Check that it even has commands
+        if "cmds" in modVals:
+            
+            #Don't bother checking if the module is disabled
+            if not modVals["enabled"]:
+                print("Module disabled")
+                continue
+            
+            exists = [val for val in modVals["cmds"] if cmd in val.lower()]
+            
+            #Check if the command sent was in the current mod's command list
+            if exists:
+            
+                #Get the command's name from the module list for proper capitalizaton
+                cmd = exists[0]
+                
+                #Get the mod's name to use in "modules" dict and user level required to run
+                modName = modVals["modName"]
+                privLevel = modVals["cmds"][cmd]
+                
+                #Check that the user is high enough level to run the command
+                if userLevel < privLevel:
+                    sendPrivMsg(channel,"{} is not high enough level for this command.".format(user))
+                    return
+                
+                #Check if we're in the anti-flood window if it's a public command
+                if antiFlood == 1 and privLevel == 0:
+                    return
+                cmdRan = 0
+                
+                #Check that the module has the proper function
+                #If so, get the function to run as a variable
+                if hasattr(modules[modName], cmd):
+                    func = getattr(modules[modName], cmd)
+                    
+                    #Run the function, returning what the function returns
+                    #Send both extra input and the user, in case the function needs either one.
+                    sendPrivMsg(channel, func(input, user))
+                    if privLevel == 0:
+                        cmdRan = 1
+                    
+                    #Set the flood protection if a public command ran
+                    if cmdRan == 1 and floodProtection > 0 and antiFlood == 0:
+                        #print("Setting flood protection")
+                        antiFlood = 1
+                        t = Timer(floodProtection, resetAntiFlood)
+                        t.start()
+                else:
+                    sendPrivMsg(channel, "Module '{}' does not have '{}' defined as a function.".format(mod, cmd))
+                    print("Module '{}' does not have '{}' defined as a function.".format(mod, cmd))
+    
+    
+    
+
 #A message started with the command character, check if it's actually a command
 def cmdRequest(user, channel, text):
-    global admin, allowedUsers, floodProtection, antiFlood, modules
+    global admin, allowedUsers, floodProtection, antiFlood, modules, modList
     
     #Get the first word as a command, everything else as one string of arguments
     dataParts = text.split(" ")
@@ -132,8 +198,8 @@ def cmdRequest(user, channel, text):
     #Lowercase for easier checking
     cmd = cmd.lower()
     
-    #List of admin commands to prevent running an if on cmd 100 times
-    adminCmd = ["debug", "join", "part", "quit", "adduser", "deluser", "antiflood"]
+    #List of built-in admin commands to prevent running an if on cmd 100 times
+    adminCmd = ["debug", "join", "part", "quit", "adduser", "deluser", "antiflood", "reloadmods"]
     
     #List of admins in lowercase
     adminLower = [name.lower() for name in admin]
@@ -172,6 +238,7 @@ def cmdRequest(user, channel, text):
             
             #Shut down the bot
             if cmd == "quit":
+                sendPrivMsg(channel, "Bye.")
                 sendMsg("QUIT :Exiting")
                 sock.close()
                 print("Quit by request of " + user)
@@ -200,6 +267,12 @@ def cmdRequest(user, channel, text):
                         print(allowedUsers)
                 else:
                     sendPrivMsg(channel, "%s is not an allowed user anyway." % (newUser))
+            
+            #Calls the loadModules function again to reload the mods
+            if cmd == "reloadmods":
+                print("{} has reloaded the mods".format(user))
+                sendPrivMsg(channel, "Reloading mods!")
+                modules, modList = modLoader.reloadModules()
         #Admin command but user is not admin
         else:
             rando = random.randint(0,len(denial)-1)
@@ -207,84 +280,88 @@ def cmdRequest(user, channel, text):
         return
 
     #List of mod commands to avoid running an if on cmd 100 times
-    modCmd = ["abilityreload", "reply", "module"]
+    modCmd = ["reply", "module"]
     #List of mods in lowercase
     privLower = [name.lower() for name in allowedUsers]
     
     #privileged but not admin commands
     if cmd.lower() in modCmd:
         if user.lower() in privLower:
-            #Reloads the list of abilities from the FF4P plugin
-            #   CSV can be edited and reloaded so bot doesn't have to restart for minor changes
-            if cmd.lower() == "abilityreload":
-                if modules["FF4P"] == "enabled":
-                    try:
-                        from FF4P import Abilities
-                    except ModuleNotFoundError:
-                        sendPrivMsg(channel,"FF4P Module not found")
-                        return
-                    
-                    Abilities.reloadAbilities()
-                    sendPrivMsg(channel, "FF4P abilities reloaded.")
-                else:
-                    sendPrivMsg(channel, "FF4P module is disabled.")
-            
+
             #Enables or disables the responder, or reloads its response list
-            #   from CSV so minor changes don't require restart
+            #   Left in after mod loader just because it's a bit special
+            #   but can also be done from "modules" command below or just "reloadModules" command
             if cmd.lower() == "reply":
-                
-                if args == "off":
-                    modules["Responder"] = "disabled"
-                    sendPrivMsg(channel, "Responder disabled.")
-                
-                elif args == "on":
-                    modules["Responder"] = "enabled"
-                    sendPrivMsg(channel, "Responder enabled.")
-                
-                elif args == "reload":
-                    if modules["Responder"] == "enabled":
-                        try:
-                            from Responder import Reply
-                        except:
-                            sendPrivMsg(channel, "Responder Module not found")
-                            return
-                        
-                        Reply.reloadReplies()
-                        sendPrivMsg(channel, "Replies reloaded.")
+                if "Responder" in modList:
+                    if args == "off":
+                        modList["Responder"]["enabled"] = False
+                        sendPrivMsg(channel, "Responder disabled.")
+                    
+                    elif args == "on":
+                        modList["Responder"]["enabled"] = True
+                        sendPrivMsg(channel, "Responder enabled.")
+                    
+                    elif args == "reload":
+                        if modList["Responder"]["enabled"]:
+                            handleModuleCommands("reloadreplies", "", user, channel)
+                        else:
+                            sendPrivMsg(channel, "Responder Module is disabled, must be enabled to reload.")
                     else:
-                        sendPrivMsg(channel, "Responder Module is disabled, must be enabled to reload.")
-                
+                        toReply = "disabled"
+                        if modList["Responder"]["enabled"]:
+                            toReply = "enabled"
+                            
+                        sendPrivMsg(channel, "Responder is currently %s. Valid input is 'on' or 'off'." %(toReply))
                 else:
-                    sendPrivMsg(channel, "Responder is currently %s. Valid input is 'on' or 'off'." %(modules["Responder"]))
+                    sendPrivMsg(channel, "Responder module not found.")
             
             #Enable or disable modules
             if cmd.lower() == "module":
                 if args == "":
-                    moduleList = ' '.join(['%s: %s;' % (key, value) for (key, value) in modules.items()])
-                    sendPrivMsg(channel, "Current modules - %s" % (moduleList[:-1]))
+                    toPrint = ""
+                    for mod, modVals in modList.items():
+                        status = "disabled"
+                        if modVals["enabled"]:
+                            status = "enabled"
+                        toPrint = toPrint + "{}: {}; ".format(mod, status)
+                        
+                    sendPrivMsg(channel, "Current modules - %s" % (toPrint[:-2]))
                     return
+                
+                #Check that either one or two arguments were sent
                 args = args.split(" ")
+                
+                #Check if the module exists, case-insensitive
+                exists = [mod for mod in modList if args[0].lower() in mod.lower()]
+                if not exists:
+                    sendPrivMsg(channel, "Module {} does not exist.".format(args[0]))
+                    return
+                
+                args[0] = exists[0]
+                
                 if len(args) > 2:
-                    sendPrivMsg(channel, "Invalid command, format is 'module moduleName [enabled/disabled]'")
+                    sendPrivMsg(channel, "Invalid command, format is 'module moduleName [enable/disable]'")
+                
                 elif len(args) == 1:
-                    try:
-                        status = modules[args[0]]
-                    except KeyError:
-                        sendPrivMsg(channel, "Module does not exist: %s" %(args[0]))
-                        return
+                #Only one argument, check if enabled or disabled
+                    status = "disabled"
+                    if modList[args[0]]["enabled"]:
+                        status = "enabled"
+                        
                     sendPrivMsg(channel, "%s module is %s" % (args[0], status))
                 else:
+                #Two arguments, enable or disable it
                     args[1] = str(args[1]).lower()
-                    if args[1] == "enabled" or args[1] == "disabled":
-                        try:
-                            status = modules[args[0]]
-                        except KeyError:
-                            sendPrivMsg(channel, "Module does not exist: %s" %(args[0]))
-                            return
-                        modules[args[0]] = args[1]
-                        sendPrivMsg(channel, "%s module is now %s" % (args[0], args[1]))
+                    if args[1] == "enable" or args[1] == "on":
+                        isEnabled = True
+                    elif args[1] == "disable" or args[1] == "off":
+                        isEnabled = False
                     else:
                         sendPrivMsg(channel, "Invalid argument: %s, must be 'enable' or 'disable'" % (args[1]))
+                        return
+                    
+                    modList[args[0]]["enabled"] = isEnabled
+                    sendPrivMsg(channel, "%s module is now %s" % (args[0], args[1]))
             
         #privileged command but user is not privileged
         else:
@@ -292,7 +369,9 @@ def cmdRequest(user, channel, text):
             rando = random.randint(0,len(denial)-1)
             sendMsg("PRIVMSG %s :" % (channel) + denial[rando] % (user))
         return
-
+    
+    handleModuleCommands(cmd, args, user, channel)
+    
     #Public Commands
     if antiFlood == 1:
         return
@@ -304,50 +383,6 @@ def cmdRequest(user, channel, text):
         if "and" in args:
             isAre = "are"
         sendPrivMsg(channel,"%s %s indeed a butt." % (args, isAre))
-        cmdRan = 1
-    
-    #Gets an item at random from the chest module
-    if cmd == "chest":
-        if modules["Chest"] == "enabled":
-            try:
-                from Chest import getItem
-            except ModuleNotFoundError:
-                sendPrivMsg(channel, "Chest Module not found")
-                return
-            
-            floorNum, floorInfo, item = getItem.pickAnItem()
-            formatted = "%s found '%s' on floor %s" % (user, item, floorNum)
-            sendPrivMsg(channel, formatted)
-        else:
-            sendPrivMsg(channel, "Chest module is disabled.")
-        cmdRan = 1
-    
-    #Gets an ability from the FF4P module
-    if cmd == "ability" and args != "":
-        if modules["FF4P"] == "enabled":
-            try:
-                from FF4P import Abilities
-            except ModuleNotFoundError:
-                sendPrivMsg(channel,"FF4P Module not found")
-                return
-            
-            found = Abilities.getAbility(args)
-            if len(found) > 1:
-                name = found[0]
-                desc = found[1]
-                cost = found[3]
-                loc  = found[4]
-                slot = found[5]
-                if len(found) > 6:
-                    coin = found[6]
-                    formatted = "%s: %s - %s AP - %s in %s (%s coins)" % (name, desc, cost, slot, loc, coin)
-                else:
-                    formatted = "%s: %s - %s AP - %s in %s" % (name, desc, cost, slot, loc)
-                sendPrivMsg(channel, formatted)
-            else:
-                sendPrivMsg(channel, "Not found")
-        else:
-            sendPrivMsg(channel, "FF4P module is disabled.")
         cmdRan = 1
     
     #Set the flood protection since a public command ran

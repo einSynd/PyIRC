@@ -1,0 +1,24 @@
+[{
+    "FF4P": {
+        "modName": "Abilities",
+        "enabled": true,
+        "cmds": {
+            "ability": 0,
+            "abilityreload": 1
+            }
+    },
+    "Responder": {
+        "modName": "Reply",
+        "enabled": true,
+        "cmds": {
+            "reloadReplies": 1
+        }
+    },
+    "Chest": {
+        "modName": "getItem",
+        "enabled": true,
+        "cmds": {
+            "chest": 0
+        }
+    }
+}]

@@ -320,6 +320,11 @@ def cmdRequest(user, channel, text):
                 if args == "":
                     toPrint = ""
                     for mod, modVals in modList.items():
+                        #If modVals is a string, not a dict, then modules failed to load
+                        if isinstance(modVals, str):
+                            sendPrivMsg(channel, "Modules not loaded. {}".format(modVals))
+                            return
+                        
                         status = "disabled"
                         if modVals["enabled"]:
                             status = "enabled"

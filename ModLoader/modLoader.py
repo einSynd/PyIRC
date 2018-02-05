@@ -7,8 +7,12 @@ def loadModules():
     modList = {}
     #File is "Modules.json" in the parent directory
     fileName = "Modules.json"
-    with open(fileName, 'r') as modFile:
-        modList = json.load(modFile)[0]
+    try:
+        with open(fileName, 'r') as modFile:
+            modList = json.load(modFile)[0]
+    except FileNotFoundError:
+        print("Modules.json not found, cannot load modules.")
+        return {"Modules":"Not Loaded"}, {"Error":"File Not Found"}
     
     for pkg, modVals in modList.items():
         modName = modVals["modName"]

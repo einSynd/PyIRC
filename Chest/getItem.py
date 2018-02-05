@@ -5,6 +5,13 @@ import re
 import random
 import csv
 
+#Function for the chat command 'chest'
+#One argument, user
+def chest(input, user):
+    floorNum, floorInfo, item = pickAnItem()
+    formatted = "{} found '{}' on floor {}".format(user, item, floorNum)
+    return formatted
+
 itemDicts = {"Armor": {}, "Blue": {}, "Other": {}, "Healing": {},
                 "Spells": {}, "Weapon": {}, "Iris": {} }
 

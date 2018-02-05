@@ -2,6 +2,19 @@ import os
 import csv
 abilityList = {}
 
+#Function for the chat command "abilityreload"
+#No arguments
+def abilityreload(*arg):
+    reloadAbilities()
+
+#Function for the chat command "ability"
+#One argument, an ability to search for
+def ability(input, user):
+    if input:
+        return getAbility(input)
+    else:
+        return "No ability to search for was given."
+
 def loadAbilities():
     global abilityList
     fileName = "FF4P/FF4P_Abil.csv"

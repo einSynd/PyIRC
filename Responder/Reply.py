@@ -1,6 +1,12 @@
 import json
 replyList = {}
 
+def reloadReplies(*args):
+    global replyList
+    replyList = {}
+    loadReplies()
+    return "Replies reloaded."
+
 def loadReplies():
     global replyList
     with open("responder/responses.txt", "r") as respondFile:
@@ -13,9 +19,3 @@ def findReply(text):
     for key in replyList:
         if text.lower().find(key) > -1:
             return replyList[key]
-
-
-def reloadReplies():
-    global replyList
-    replyList = {}
-    loadReplies()
